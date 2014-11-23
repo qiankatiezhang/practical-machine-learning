@@ -1,0 +1,71 @@
+---
+title: "Practical Machine Learning"
+author: "Qian Zhang"
+date: "Saturday, November 22, 2014"
+output: html_document
+---
+
+**Abstract**
+
+The purpose of this project is to predict the manner in which participants did the barbell lifts exercise by using data from accelerometers on their belt, forearm, arm, and dumbell. The outcome is how well they did the physical acitivity, that is, whether participants did the exercise correctly or incorrectly. I use the random forest method for this course project.
+
+
+**Data Preprocessing**
+
+First, load required libraries and set a random seed. Then read in the training and testing datasets in the csv format.
+```{r}
+library(caret)
+library(randomForest)
+
+training <- read.csv("pml-training.csv", header=T, sep=, na.strings=c("", "NA", "#DIV/0!"))
+testing <- read.csv("pml-testing.csv", header=T, sep=, na.strings=c("", "NA", "#DIV/0!"))
+```
+
+Second, remove the first seven column, and then remove columns with all NAs and zeros.
+```{r}
+training <- training[,-c(1,2,3,4,5,6,7)]
+testing <- testing[,-c(1,2,3,4,5,6,7)]
+NAcols <- as.vector(sapply(training[,1:152], function(x) {length(which(is.na(x)!=0))}))
+training <- training[,!NAcols]
+testing <- testing[,!NAcols]
+```
+
+
+**Training with Random Forests**
+
+In this stage, The training data is splitted to a training set and testing set. 60% of the training data is in the training set and 40% is in the testing set. 
+```{r}
+inTrain <- createDataPartition(training$classe, p=.60)[[1]]
+training.inTrain <- training[inTrain,]
+testing.inTrain <- training[-inTrain,]
+```
+
+Then I will train the data with random forests.
+```{r}
+fitRF <- randomForest(training.inTrain$classe ~., data = training.inTrain, importance=T)
+```
+
+Some statistics on the results.
+```{r}
+summary(fitRF)
+```
+
+Now I will compare the results from the predition with the actual data. The Kappa statistic of 0.993 reflects the out-of-sample error.
+```{r}
+confusionMatrix(predict(fitRF, testing.inTrain), testing.inTrain$classe)
+```
+
+The following plot shows the training error vs. the number of trees.
+```{r}
+plot(fitRF, main="Error vs. # of trees")
+```
+
+
+**Final Prediction**
+
+This is the final random forests model and the prediction.
+```{r}
+finalRF <- randomForest(training$classe ~., data = training, importance=T, na.action = na.omit)
+predict(finalRF, newdata=testing)
+```
+
